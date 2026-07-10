@@ -225,7 +225,11 @@ def add_checkin(task_id, note=""):
             (task_id,),
         ).fetchone()
         if last:
-            last_time = datetime.datetime.fromisoformat(last[0])
+            try:
+                last_time = datetime.datetime.fromisoformat(last[0])
+            except (ValueError, TypeError):
+                conn.close()
+                return 0  # corrupt checkin -> treat as locked
             if (datetime.datetime.now() - last_time).total_seconds() < 86400:
                 conn.close()
                 return 0  # signal: still in cooldown

@@ -1092,7 +1092,10 @@ def _send_checkin_notification(task):
             try:
                 resp = requests.post(url, json={"chat_id": chat_id, "text": text}, timeout=10)
                 resp.raise_for_status()
-                ok = True
+                if resp.json().get("ok"):
+                    ok = True
+                else:
+                    logger.error("Telegram 发送失败: %s", resp.json().get("description", "unknown"))
             except Exception as e:
                 logger.error("Telegram 发送失败: %s", e)
         elif ctype == "serverchan":
@@ -1197,6 +1200,9 @@ def api_channel_test():
             resp = requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage",
                                 json={"chat_id": chat_id, "text": text}, timeout=10)
             resp.raise_for_status()
+            result = resp.json()
+            if not result.get("ok"):
+                return jsonify({"success": False, "error": result.get("description", "发送失败")}), 400
         elif ctype == "serverchan":
             send_key = cfg.get("send_key", "")
             if not send_key:
