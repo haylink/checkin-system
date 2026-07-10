@@ -1,11 +1,10 @@
 import os
-import hashlib
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 if not ADMIN_PASSWORD:
     raise RuntimeError(
         "❌ ADMIN_PASSWORD 环境变量未设置，无法启动。\n"
-        "   export ADMIN_PASSWORD='your_secure_password'"
+        "   export ADMIN_PASSWORD='***'"
     )
 
 # Telegram 通道 — 可选，仅在使用 Telegram 通知时需要
