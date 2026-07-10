@@ -1,6 +1,7 @@
 import datetime
 import hashlib
 import json
+import logging
 from functools import wraps
 
 import requests
@@ -11,6 +12,7 @@ import database
 
 app = Flask(__name__)
 # Secret key 在 init_settings() 之后设置（见启动块）
+logger = logging.getLogger(__name__)
 
 
 def require_auth(f):
@@ -950,7 +952,7 @@ def api_tasks_list():
             remaining = (due - datetime.datetime.now()).total_seconds()
             remaining_days = int(remaining // 86400)
             if remaining > 0:
-                rd = int(remaining // 86400)
+                rd = remaining_days
                 for d in t["reminder_days"]:
                     if rd <= d:
                         rt = due - datetime.timedelta(days=d)
@@ -1058,14 +1060,6 @@ def api_task_checkin(task_id):
 
 def _send_checkin_notification(task):
     """签到成功后推送通知到所有启用的频道"""
-    import logging
-    logger = logging.getLogger(__name__)
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
-
     channels = [c for c in database.get_channels() if c["enabled"]]
     logger.info("通知频道数量: %d", len(channels))
     if not channels:
@@ -1230,7 +1224,21 @@ def api_channel_test():
 
 # 临时存储已验证的 session（用于重置密码流程中验证答案后保持状态）
 import uuid as _uuid
-_reset_tokens = {}
+import time as _time
+_reset_tokens: dict[str, float] = {}  # token -> creation_timestamp
+
+# 15 分钟 TTL
+_RESET_TOKEN_TTL = 15 * 60
+
+
+def _cleanup_reset_tokens():
+    now = _time.time()
+    expired = [
+        t for t, ts in _reset_tokens.items()
+        if now - ts > _RESET_TOKEN_TTL
+    ]
+    for t in expired:
+        del _reset_tokens[t]
 
 
 @app.route("/api/reset-password/question", methods=["GET"])
@@ -1252,8 +1260,9 @@ def api_reset_check():
         return jsonify({"success": False, "error": "未设置密保问题"}), 400
     if answer != stored:
         return jsonify({"success": False, "error": "答案错误"}), 400
+    _cleanup_reset_tokens()
     token = str(_uuid.uuid4())
-    _reset_tokens[token] = True
+    _reset_tokens[token] = _time.time()
     return jsonify({"success": True, "token": token})
 
 
@@ -1262,6 +1271,7 @@ def api_reset_reset():
     data = request.get_json(force=True)
     if not data:
         return jsonify({"success": False, "error": "无效数据"}), 400
+    _cleanup_reset_tokens()
     token = data.get("token", "")
     if token not in _reset_tokens:
         return jsonify({"success": False, "error": "请先验证密保问题"}), 403
