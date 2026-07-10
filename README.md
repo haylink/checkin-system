@@ -99,6 +99,137 @@ python3 reset_password.py new_password
 nohup python3 app.py > logs/app.log 2>&1 &
 ```
 
+### Deployment on a Server with Domain Access
+
+#### 1. Choose a directory and copy the project
+
+Recommended: `/opt/checkin-system` or `/var/www/checkin-system`
+
+```bash
+mkdir -p /opt/checkin-system
+cd /opt/checkin-system
+git clone https://github.com/haylink/checkin-system.git .
+pip install -r requirements.txt
+```
+
+> You can use any directory you prefer. The database (`data.db`) will be created in the same directory as the project files.
+
+#### 2. Configure environment variables
+
+Create a `.env` file or export in your shell profile (`~/.bashrc` or `~/.zshrc`):
+
+```bash
+# /opt/checkin-system/.env
+ADMIN_PASSWORD='your_secure_password'
+TELEGRAM_BOT_TOKEN='***'      # Optional
+TELEGRAM_CHAT_ID='your_chat_id'           # Optional
+```
+
+To load the `.env` file when starting the app:
+
+```bash
+set -a; source .env; set +a
+python3 app.py
+```
+
+Or use a tool like `python-dotenv`:
+
+```bash
+pip install python-dotenv
+# Then modify config.py to load .env, or set env vars manually
+```
+
+#### 3. Start the application
+
+The app binds to all interfaces (`0.0.0.0`) on port **8080** by default.
+
+```bash
+cd /opt/checkin-system
+nohup python3 app.py > logs/app.log 2>&1 &
+```
+
+Access via: `http://<server-ip>:8080`
+
+#### 4. Configure reverse proxy with Nginx (for domain access)
+
+Install Nginx:
+
+```bash
+sudo apt install nginx   # Ubuntu/Debian
+# or
+sudo yum install nginx   # CentOS/RHEL
+```
+
+Create a site configuration file:
+
+```nginx
+# /etc/nginx/sites-available/checkin
+server {
+    listen 80;
+    server_name checkin.example.com;  # Replace with your domain
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Enable the site and reload Nginx:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/checkin /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Now access via: `http://checkin.example.com`
+
+#### 5. Run as a systemd service (recommended)
+
+Create a systemd service file to ensure the app starts automatically and restarts on failure:
+
+```bash
+sudo nano /etc/systemd/system/checkin-system.service
+```
+
+```ini
+[Unit]
+Description=TaskFlow Check-in Reminder System
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/checkin-system
+EnvironmentFile=/opt/checkin-system/.env
+ExecStart=/usr/bin/python3 /opt/checkin-system/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable checkin-system
+sudo systemctl start checkin-system
+sudo systemctl status checkin-system
+```
+
+#### 6. Configure crontab for reminders (on server)
+
+Same as local setup, but use the absolute path:
+
+```bash
+crontab -e
+* * * * * cd /opt/checkin-system && /usr/bin/python3 remind.py >> logs/remind.log 2>&1
+```
+
 ---
 
 ## 中文说明
@@ -187,6 +318,129 @@ python3 reset_password.py 新密码
 
 ```bash
 nohup python3 app.py > logs/app.log 2>&1 &
+```
+
+### 服务器部署（域名访问）
+
+#### 1. 选择目录并部署项目
+
+推荐路径：`/opt/checkin-system` 或 `/var/www/checkin-system`
+
+```bash
+mkdir -p /opt/checkin-system
+cd /opt/checkin-system
+git clone https://github.com/haylink/checkin-system.git .
+pip install -r requirements.txt
+```
+
+> 目录可自选。数据库文件（`data.db`）会自动在项目目录下创建。
+
+#### 2. 配置环境变量
+
+创建 `.env` 文件或写入 shell 配置文件（`~/.bashrc` / `~/.zshrc`）：
+
+```bash
+# /opt/checkin-system/.env
+ADMIN_PASSWORD='your_s...'***'      # 可选
+TELEGRAM_CHAT_ID='your_chat_id'           # 可选
+```
+
+启动时加载 `.env` 文件：
+
+```bash
+set -a; source .env; set +a
+python3 app.py
+```
+
+#### 3. 启动应用
+
+应用默认绑定所有网卡（`0.0.0.0`），端口 **8080**。
+
+```bash
+cd /opt/checkin-system
+nohup python3 app.py > logs/app.log 2>&1 &
+```
+
+访问：`http://<服务器IP>:8080`
+
+#### 4. 配置 Nginx 反向代理（域名访问）
+
+安装 Nginx：
+
+```bash
+sudo apt install nginx   # Ubuntu/Debian
+# 或
+sudo yum install nginx   # CentOS/RHEL
+```
+
+创建站点配置文件：
+
+```nginx
+# /etc/nginx/sites-available/checkin
+server {
+    listen 80;
+    server_name checkin.example.com;  # 替换为你的域名
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+启用站点并重启 Nginx：
+
+```bash
+sudo ln -s /etc/nginx/sites-available/checkin /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+访问：`http://checkin.example.com`
+
+#### 5. 配置 systemd 服务（推荐）
+
+创建 systemd 服务文件，确保应用开机自启、崩溃自动重启：
+
+```bash
+sudo nano /etc/systemd/system/checkin-system.service
+```
+
+```ini
+[Unit]
+Description=TaskFlow 签到提醒系统
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/checkin-system
+EnvironmentFile=/opt/checkin-system/.env
+ExecStart=/usr/bin/python3 /opt/checkin-system/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启用并启动服务：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable checkin-system
+sudo systemctl start checkin-system
+sudo systemctl status checkin-system
+```
+
+#### 6. 配置定时提醒（服务器端）
+
+与本地相同，但使用绝对路径：
+
+```bash
+crontab -e
+* * * * * cd /opt/checkin-system && /usr/bin/python3 remind.py >> logs/remind.log 2>&1
 ```
 
 ---
