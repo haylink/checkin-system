@@ -33,8 +33,8 @@ git clone https://github.com/haylink/checkin-system.git && cd checkin-system
 pip install -r requirements.txt
 
 # 3. Set environment variables
-export ADMIN_PASSWORD='your_secure_password'
-export TELEGRAM_BOT_TOKEN='your_bot_token'      # Optional
+export ADMIN_PASSWORD='***'
+export TELEGRAM_BOT_TOKEN='***'       # Optional
 export TELEGRAM_CHAT_ID='your_chat_id'           # Optional
 
 # 4. Start the server
@@ -42,6 +42,8 @@ python3 app.py
 ```
 
 Visit http://localhost:8080 to access the login page.
+
+> **Note:** The database (`data.db`) is created automatically on first startup — no manual setup required.
 
 ### Environment Variables
 
@@ -99,11 +101,17 @@ python3 reset_password.py new_password
 nohup python3 app.py > logs/app.log 2>&1 &
 ```
 
-### Deployment on a Server with Domain Access
+---
 
-#### 1. Choose a directory and copy the project
+## Deployment on a Server
 
-Recommended: `/opt/checkin-system` or `/var/www/checkin-system`
+### Basic Setup (Direct Access via Public IP)
+
+If your server has a public IP, you can access the app directly on port 8080 — no reverse proxy needed.
+
+**1. Choose a directory and clone the project**
+
+Recommended: `/opt/checkin-system`
 
 ```bash
 mkdir -p /opt/checkin-system
@@ -112,55 +120,82 @@ git clone https://github.com/haylink/checkin-system.git .
 pip install -r requirements.txt
 ```
 
-> You can use any directory you prefer. The database (`data.db`) will be created in the same directory as the project files.
+> The database (`data.db`) is automatically created in this directory on first startup.
 
-#### 2. Configure environment variables
+**2. Set environment variables**
 
-Create a `.env` file or export in your shell profile (`~/.bashrc` or `~/.zshrc`):
-
-```bash
-# /opt/checkin-system/.env
-ADMIN_PASSWORD='your_secure_password'
-TELEGRAM_BOT_TOKEN='***'      # Optional
-TELEGRAM_CHAT_ID='your_chat_id'           # Optional
-```
-
-To load the `.env` file when starting the app:
+For persistent settings, add them to your shell profile (`~/.bashrc` or `~/.zshrc`):
 
 ```bash
-set -a; source .env; set +a
-python3 app.py
+# ~/.bashrc
+export ADMIN_PASSWORD='***'
+export TELEGRAM_BOT_TOKEN='***'       # Optional
+export TELEGRAM_CHAT_ID='your_chat_id'           # Optional
+export DATABASE_PATH='/opt/checkin-system/data.db'
 ```
 
-Or use a tool like `python-dotenv`:
+Then reload the profile:
 
 ```bash
-pip install python-dotenv
-# Then modify config.py to load .env, or set env vars manually
+source ~/.bashrc
 ```
 
-#### 3. Start the application
-
-The app binds to all interfaces (`0.0.0.0`) on port **8080** by default.
+**3. Start the application**
 
 ```bash
 cd /opt/checkin-system
-nohup python3 app.py > logs/app.log 2>&1 &
+python3 app.py
 ```
 
-Access via: `http://<server-ip>:8080`
+Access via: `http://<your-server-ip>:8080`
 
-#### 4. Configure reverse proxy with Nginx (for domain access)
+**4. Optional: Run as a systemd service**
 
-Install Nginx:
+To ensure the app starts on boot and restarts on failure:
 
 ```bash
-sudo apt install nginx   # Ubuntu/Debian
-# or
-sudo yum install nginx   # CentOS/RHEL
+sudo nano /etc/systemd/system/checkin-system.service
 ```
 
-Create a site configuration file:
+```ini
+[Unit]
+Description=TaskFlow Check-in Reminder System
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/checkin-system
+Environment=ADMIN_PASSWORD=***
+Environment=TELEGRAM_BOT_TOKEN=***
+Environment=TELEGRAM_CHAT_ID=your_chat_id
+ExecStart=/usr/bin/python3 /opt/checkin-system/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+> Replace the placeholder values with your actual credentials. You can also use `EnvironmentFile` to point to a separate `.env` file instead.
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable checkin-system
+sudo systemctl start checkin-system
+sudo systemctl status checkin-system
+```
+
+**5. Optional: Configure Nginx reverse proxy (for domain access)**
+
+If you want to use a domain name or access on port 80 without specifying 8080:
+
+```bash
+sudo apt install nginx   # or: sudo yum install nginx
+```
+
+Create a site configuration:
 
 ```nginx
 # /etc/nginx/sites-available/checkin
@@ -178,52 +213,16 @@ server {
 }
 ```
 
-Enable the site and reload Nginx:
+Enable and reload:
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/checkin /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Now access via: `http://checkin.example.com`
+Access via: `http://checkin.example.com`
 
-#### 5. Run as a systemd service (recommended)
-
-Create a systemd service file to ensure the app starts automatically and restarts on failure:
-
-```bash
-sudo nano /etc/systemd/system/checkin-system.service
-```
-
-```ini
-[Unit]
-Description=TaskFlow Check-in Reminder System
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/checkin-system
-EnvironmentFile=/opt/checkin-system/.env
-ExecStart=/usr/bin/python3 /opt/checkin-system/app.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start the service:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable checkin-system
-sudo systemctl start checkin-system
-sudo systemctl status checkin-system
-```
-
-#### 6. Configure crontab for reminders (on server)
-
-Same as local setup, but use the absolute path:
+**6. Configure crontab for reminders**
 
 ```bash
 crontab -e
@@ -255,7 +254,7 @@ pip install -r requirements.txt
 
 # 3. 设置环境变量
 export ADMIN_PASSWORD='your_secure_password'
-export TELEGRAM_BOT_TOKEN='your_bot_token'      # 可选
+export TELEGRAM_BOT_TOKEN='***'       # 可选
 export TELEGRAM_CHAT_ID='your_chat_id'           # 可选
 
 # 4. 启动服务
@@ -263,6 +262,8 @@ python3 app.py
 ```
 
 访问 http://localhost:8080 进入登录页面。
+
+> **注意：** 数据库（`data.db`）会在首次启动时自动创建，无需手动操作。
 
 ### 环境变量
 
@@ -307,7 +308,7 @@ crontab -e
 
 ### 忘记密码
 
-- **网页端**：登录页点击「忘记密码」→ 回答密保问题 → 重置
+- **网页端**：登录页点击「忘记了密码」→ 回答密保问题 → 重置
 - **命令行**：
 
 ```bash
@@ -320,11 +321,17 @@ python3 reset_password.py 新密码
 nohup python3 app.py > logs/app.log 2>&1 &
 ```
 
-### 服务器部署（域名访问）
+---
 
-#### 1. 选择目录并部署项目
+## 服务器部署
 
-推荐路径：`/opt/checkin-system` 或 `/var/www/checkin-system`
+### 基础部署（公网 IP 直接访问）
+
+如果你的服务器有公网 IP，应用启动后直接通过 `http://<服务器IP>:8080` 访问即可，无需反向代理。
+
+**1. 选择目录并克隆项目**
+
+推荐路径：`/opt/checkin-system`
 
 ```bash
 mkdir -p /opt/checkin-system
@@ -333,47 +340,82 @@ git clone https://github.com/haylink/checkin-system.git .
 pip install -r requirements.txt
 ```
 
-> 目录可自选。数据库文件（`data.db`）会自动在项目目录下创建。
+> 数据库（`data.db`）会在首次启动时自动在项目目录下创建。
 
-#### 2. 配置环境变量
+**2. 设置环境变量**
 
-创建 `.env` 文件或写入 shell 配置文件（`~/.bashrc` / `~/.zshrc`）：
-
-```bash
-# /opt/checkin-system/.env
-ADMIN_PASSWORD='your_s...'***'      # 可选
-TELEGRAM_CHAT_ID='your_chat_id'           # 可选
-```
-
-启动时加载 `.env` 文件：
+将环境变量写入 shell 配置文件（`~/.bashrc` 或 `~/.zshrc`）以持久化：
 
 ```bash
-set -a; source .env; set +a
-python3 app.py
+# ~/.bashrc
+export ADMIN_PASSWORD='your_secure_password'
+export TELEGRAM_BOT_TOKEN='***'       # 可选
+export TELEGRAM_CHAT_ID='your_chat_id'           # 可选
+export DATABASE_PATH='/opt/checkin-system/data.db'
 ```
 
-#### 3. 启动应用
+重新加载配置：
 
-应用默认绑定所有网卡（`0.0.0.0`），端口 **8080**。
+```bash
+source ~/.bashrc
+```
+
+**3. 启动应用**
 
 ```bash
 cd /opt/checkin-system
-nohup python3 app.py > logs/app.log 2>&1 &
+python3 app.py
 ```
 
 访问：`http://<服务器IP>:8080`
 
-#### 4. 配置 Nginx 反向代理（域名访问）
+**4. 可选：配置 systemd 服务**
 
-安装 Nginx：
+让应用开机自启、崩溃自动重启：
 
 ```bash
-sudo apt install nginx   # Ubuntu/Debian
-# 或
-sudo yum install nginx   # CentOS/RHEL
+sudo nano /etc/systemd/system/checkin-system.service
 ```
 
-创建站点配置文件：
+```ini
+[Unit]
+Description=TaskFlow 签到提醒系统
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/checkin-system
+Environment=ADMIN_PASSWORD=your_secure_password
+Environment=TELEGRAM_BOT_TOKEN=your_bot_token
+Environment=TELEGRAM_CHAT_ID=your_chat_id
+ExecStart=/usr/bin/python3 /opt/checkin-system/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+> 将占位值替换为实际凭据。也可使用 `EnvironmentFile` 指向单独的 `.env` 文件。
+
+启用并启动：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable checkin-system
+sudo systemctl start checkin-system
+sudo systemctl status checkin-system
+```
+
+**5. 可选：配置 Nginx 反向代理（域名访问）**
+
+如果使用域名访问，或希望通过 80 端口访问：
+
+```bash
+sudo apt install nginx   # 或：sudo yum install nginx
+```
+
+创建站点配置：
 
 ```nginx
 # /etc/nginx/sites-available/checkin
@@ -391,7 +433,7 @@ server {
 }
 ```
 
-启用站点并重启 Nginx：
+启用并重启：
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/checkin /etc/nginx/sites-enabled/
@@ -400,43 +442,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 访问：`http://checkin.example.com`
 
-#### 5. 配置 systemd 服务（推荐）
-
-创建 systemd 服务文件，确保应用开机自启、崩溃自动重启：
-
-```bash
-sudo nano /etc/systemd/system/checkin-system.service
-```
-
-```ini
-[Unit]
-Description=TaskFlow 签到提醒系统
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/checkin-system
-EnvironmentFile=/opt/checkin-system/.env
-ExecStart=/usr/bin/python3 /opt/checkin-system/app.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-启用并启动服务：
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable checkin-system
-sudo systemctl start checkin-system
-sudo systemctl status checkin-system
-```
-
-#### 6. 配置定时提醒（服务器端）
-
-与本地相同，但使用绝对路径：
+**6. 配置定时提醒**
 
 ```bash
 crontab -e
