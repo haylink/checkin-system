@@ -142,12 +142,12 @@ def get_tasks():
     return [
         {
             "id": r[0], "name": r[1], "description": r[2], "url": r[3] or "",
-            "checkin_days": r[4], "reminder_days": [int(x) for x in r[5].split(",") if x.strip()],
-            "advance_msg_template": r[6] or '', "final_msg_template": r[7] or '',
-            "created_at": r[8], "active": bool(r[9]),
-        }
-        for r in rows
-    ]
+            "checkin_days": r[4], "reminder_days": [int(x) for x in (r[5] or "3,1").split(",") if x.strip()],
+ "advance_msg_template": r[6] or '', "final_msg_template": r[7] or '',
+ "created_at": r[8], "active": bool(r[9]),
+ }
+ for r in rows
+ ]
 
 
 def get_task(task_id):
@@ -162,7 +162,7 @@ def get_task(task_id):
         return None
     return {
         "id": r[0], "name": r[1], "description": r[2], "url": r[3] or "",
-        "checkin_days": r[4], "reminder_days": [int(x) for x in r[5].split(",") if x.strip()],
+        "checkin_days": r[4], "reminder_days": [int(x) for x in (r[5] or "3,1").split(",") if x.strip()],
         "advance_msg_template": r[6] or '', "final_msg_template": r[7] or '',
         "created_at": r[8], "active": bool(r[9]),
     }
@@ -213,15 +213,33 @@ def delete_task(task_id):
 
 
 def add_checkin(task_id, note=""):
+    """Insert a checkin only if the last one for this task was >= 86400s ago.
+    Returns checkin_id on success, 0 if cooldown still active."""
     conn = get_connection()
     c = conn.cursor()
-    now = datetime.datetime.now().isoformat()
-    c.execute("INSERT INTO checkins (task_id, checkin_time, note) VALUES (?, ?, ?)",
-              (task_id, now, note))
-    checkin_id = c.lastrowid
-    conn.commit()
-    conn.close()
-    return checkin_id
+    try:
+        now = datetime.datetime.now().isoformat()
+        # Atomic guard: read last checkin and only INSERT if cooldown expired
+        last = c.execute(
+            "SELECT checkin_time FROM checkins WHERE task_id=? ORDER BY id DESC LIMIT 1",
+            (task_id,),
+        ).fetchone()
+        if last:
+            last_time = datetime.datetime.fromisoformat(last[0])
+            if (datetime.datetime.now() - last_time).total_seconds() < 86400:
+                conn.close()
+                return 0  # signal: still in cooldown
+        c.execute(
+            "INSERT INTO checkins (task_id, checkin_time, note) VALUES (?, ?, ?)",
+            (task_id, now, note),
+        )
+        checkin_id = c.lastrowid
+        conn.commit()
+        conn.close()
+        return checkin_id
+    except Exception:
+        conn.close()
+        raise
 
 
 def get_last_checkin(task_id):
@@ -247,12 +265,24 @@ def get_all_checkins(task_id, limit=50):
 
 
 def can_checkin_task(task_id):
-    last = get_last_checkin(task_id)
-    if not last:
-        return True
-    last_time = datetime.datetime.fromisoformat(last["checkin_time"])
-    now = datetime.datetime.now()
-    return (now - last_time).total_seconds() >= 86400
+    """Check if the task can be checked in (no checkin in last 24h)."""
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        last = c.execute(
+            "SELECT checkin_time FROM checkins WHERE task_id=? ORDER BY id DESC LIMIT 1",
+            (task_id,),
+        ).fetchone()
+        if not last:
+            return True
+        try:
+            last_time = datetime.datetime.fromisoformat(last[0])
+        except (ValueError, TypeError):
+            return True  # corrupt data -> allow checkin
+        now = datetime.datetime.now()
+        return (now - last_time).total_seconds() >= 86400
+    finally:
+        conn.close()
 
 
 def is_reminder_sent(task_id, checkin_id, reminder_type):

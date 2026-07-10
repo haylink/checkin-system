@@ -29,7 +29,10 @@ def require_auth(f):
 def fmt_time(iso):
     if not iso:
         return "-"
-    d = datetime.datetime.fromisoformat(iso)
+    try:
+        d = datetime.datetime.fromisoformat(iso)
+    except (ValueError, TypeError):
+        return "-"
     return d.strftime("%Y-%m-%d %H:%M")
 
 
@@ -1046,11 +1049,11 @@ def api_task_checkin(task_id):
     task = database.get_task(task_id)
     if not task:
         return jsonify({"success": False, "error": "任务不存在"}), 404
-    if not database.can_checkin_task(task_id):
-        return jsonify({"success": False, "error": "24小时内只能签到一次"}), 400
     data = request.get_json(force=True, silent=True)
     note = (data or {}).get("note", "")
     cid = database.add_checkin(task_id, note=note)
+    if cid == 0:
+        return jsonify({"success": False, "error": "24小时内只能签到一次"}), 400
 
     # 签到成功后，向所有启用的通知频道推送提醒
     _send_checkin_notification(task)
