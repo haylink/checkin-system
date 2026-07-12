@@ -3,33 +3,28 @@
  * Configuration for checkin-system (PHP port).
  * Reads environment variables with the same defaults as the original config.py.
  */
-// ── Auto-load .env file ────────────────────────────────────────────────────────
+// ── Auto-load .env file (optional) ────────────────────────────────────────────
 function load_dotenv(): void
 {
-    $candidates = [
-        __DIR__ . '/.env',
-        __DIR__ . '/../.env',
-    ];
-    foreach ($candidates as $path) {
-        if (!file_exists($path)) continue;
-        foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-            $line = trim($line);
-            if ($line === '' || $line[0] === '#') continue;
-            $pos = strpos($line, '=');
-            if ($pos === false) continue;
-            $key = trim(substr($line, 0, $pos));
-            $val = trim(substr($line, $pos + 1));
-            // Strip surrounding quotes
-            if (strlen($val) >= 2 && ($val[0] === "'" && $val[-1] === "'") || ($val[0] === '"' && $val[-1] === '"')) {
-                $val = substr($val, 1, -1);
-            }
-            if (empty(getenv($key))) {
-                putenv("{$key}={$val}");
-                $_ENV[$key] = $val;
-                $_SERVER[$key] = $val;
-            }
+    // Only look for .env in the same directory — no parent directory,
+    // no open_basedir issues, no unnecessary file access.
+    $path = __DIR__ . '/.env';
+    if (!is_readable($path)) return;
+    foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#') continue;
+        $pos = strpos($line, '=');
+        if ($pos === false) continue;
+        $key = trim(substr($line, 0, $pos));
+        $val = trim(substr($line, $pos + 1));
+        if (strlen($val) >= 2 && (($val[0] === "'" && $val[-1] === "'") || ($val[0] === '"' && $val[-1] === '"'))) {
+            $val = substr($val, 1, -1);
         }
-        break; // loaded first found file
+        if (empty(getenv($key))) {
+            putenv("{$key}={$val}");
+            $_ENV[$key] = $val;
+            $_SERVER[$key] = $val;
+        }
     }
 }
 load_dotenv();
