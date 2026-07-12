@@ -136,7 +136,7 @@ function send_checkin_notification(array $task, ?string $lastCheckinTime = null)
         try {
             $dt = new DateTime($lastCheckinTime);
             $dt->modify("{$interval} days");
-            $nextLine .= "，" . $dt->format('Y-m-d H:i');
+            $nextLine = "下次签到：" . $dt->format('Y-m-d H:i') . "，{$interval} 天后";
         } catch (\Exception $e) {
             // fall back to relative-only
         }
