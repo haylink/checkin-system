@@ -1,8 +1,19 @@
 <?php
 /**
  * Main entry point for the checkin-system (PHP port of app.py).
- * Routes all requests through index.php — the web server (Apache/nginx with PHP-FPM)
- * should direct all traffic here (via .htaccess rewrite rules or direct config).
+ * No web server rewrite rules needed. All routing uses query parameters:
+ *
+ *   https://momy.eu.cc/            → dashboard (home)
+ *   https://momy.eu.cc/index.php   → dashboard
+ *   https://momy.eu.cc/?p=login    → login page
+ *   https://momy.eu.cc/?p=admin    → admin page
+ *   https://momy.eu.cc/?p=init     → first-time init page
+ *   https://momy.eu.cc/?p=logout   → logout
+ *   https://momy.eu.cc/?a=api/tasks          → API (GET/POST/PUT/DELETE)
+ *   https://momy.eu.cc/?a=api/notify-test    → test notification
+ *
+ * Just upload index.php + config.php + database.php + remind.php + reset_password.php
+ * + templates/ to public_html/. No .htaccess, no Nginx rewrite, no .env file.
  */
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -30,10 +41,20 @@ function json_response(array $data, int $status = 200): void
 
 /**
  * Send a redirect response.
+ * Uses ?p= query parameters so no web server rewrite rules are needed.
  */
-function redirect(string $url): void
+function redirect(string $page = 'login'): void
 {
-    header("Location: $url");
+    // Accept page name (e.g. 'login', 'admin', 'init') or '?a=api/xxx'
+    if ($page === '/') {
+        $url = '?';
+    } elseif (str_starts_with($page, '/')) {
+        $p = ltrim($page, '/');
+        $url = '?p=' . $p;
+    } else {
+        $url = '?p=' . $page;
+    }
+    header("Location: " . $url);
     exit;
 }
 
@@ -67,9 +88,9 @@ function require_auth(bool $is_api = false): void
         }
         // If no admin password has been set, redirect to init page
         if (!get_admin_password()) {
-            redirect('/init');
+            redirect('init');
         }
-        redirect('/login');
+        redirect('login');
     }
 }
 
@@ -169,25 +190,40 @@ function http_post_form(string $url, array $data): void
 }
 
 // ── Route Parsing ────────────────────────────────────────────────────────────
+// Uses query parameters — no web server rewrite rules needed.
+// ?p=login  ?p=admin  ?p=init  ?p=logout  → HTML pages
+// ?a=api/xxx                                    → API endpoints
+// neither ?p nor ?a                             → dashboard (home)
 
 $method = $_SERVER['REQUEST_METHOD'];
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-// Normalize: remove trailing slash (except root)
-$uri = $uri !== '/' ? rtrim($uri, '/') : $uri;
+$p     = trim($_GET['p'] ?? '');   // page: login, admin, init, logout
+$a     = trim($_GET['a'] ?? '');   // action: api/xxx
+
+// Legacy compatibility: if REQUEST_URI contains a path like /login or /api/xxx,
+// map it to the equivalent query parameter so existing bookmarks still work.
+if ($p === '' && $a === '') {
+    $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $path = $path !== '/' ? rtrim($path, '/') : $path;
+    if (str_starts_with($path, '/api/')) {
+        $a = substr($path, 5);
+    } else {
+        $p = ltrim($path, '/');
+    }
+}
 
 // ── Routes (no auth required) ─────────────────────────────────────────────────
 
 // LOGIN
-if ($uri === '/login') {
+if ($p === 'login') {
     // If no admin password exists yet, redirect to init page
     if (!get_admin_password()) {
-        redirect('/init');
+        redirect('init');
     }
     if ($method === 'POST') {
         $pw = $_POST['password'] ?? '';
         if ($pw === get_admin_password()) {
             $_SESSION['logged_in'] = true;
-            redirect('/');
+            redirect('');
         }
         render_template(__DIR__ . '/templates/login.html', '密码错误，请重试');
     }
@@ -195,9 +231,9 @@ if ($uri === '/login') {
 }
 
 // LOGOUT
-if ($uri === '/logout') {
+if ($p === 'logout') {
     session_destroy();
-    redirect('/login');
+    redirect('login');
 }
 
 // ── Reset Password API (no auth required) ─────────────────────────────────────
@@ -219,7 +255,7 @@ function cleanup_reset_tokens(): void
     }
 }
 
-if ($uri === '/api/reset-password/question' && $method === 'GET') {
+if ($a === 'api/reset-password/question' && $method === 'GET') {
     $q = get_setting('security_question');
     if ($q) {
         json_response(['success' => true, 'has_question' => true, 'question' => $q]);
@@ -227,7 +263,7 @@ if ($uri === '/api/reset-password/question' && $method === 'GET') {
     json_response(['success' => true, 'has_question' => false]);
 }
 
-if ($uri === '/api/reset-password/check' && $method === 'POST') {
+if ($a === 'api/reset-password/check' && $method === 'POST') {
     $data = json_body();
     if (!$data) {
         json_response(['success' => false, 'error' => '无效数据'], 400);
@@ -246,7 +282,7 @@ if ($uri === '/api/reset-password/check' && $method === 'POST') {
     json_response(['success' => true, 'token' => $token]);
 }
 
-if ($uri === '/api/reset-password/reset' && $method === 'POST') {
+if ($a === 'api/reset-password/reset' && $method === 'POST') {
     $data = json_body();
     if (!$data) {
         json_response(['success' => false, 'error' => '无效数据'], 400);
@@ -268,7 +304,7 @@ if ($uri === '/api/reset-password/reset' && $method === 'POST') {
 // ── Init: First-time admin password setup ──────────────────────────────────────
 // These routes are public — no auth required because no admin password exists yet.
 
-if ($uri === '/api/init' && $method === 'POST') {
+if ($a === 'api/init' && $method === 'POST') {
     $data = json_body();
     if (!$data) {
         json_response(['success' => false, 'error' => '无效数据'], 400);
@@ -285,31 +321,31 @@ if ($uri === '/api/init' && $method === 'POST') {
     json_response(['success' => true]);
 }
 
-if ($uri === '/init') {
+if ($p === 'init') {
     // If a password already exists, redirect to login instead
     if (get_admin_password()) {
-        redirect('/login');
+        redirect('login');
     }
     render_template(__DIR__ . '/templates/init.html');
 }
 
 // ── All remaining routes require auth ─────────────────────────────────────────
 // (DASHBOARD, ADMIN, API)
-require_auth(str_starts_with($uri, '/api/'));
+require_auth(str_starts_with($a, 'api/'));
 
 // ── HTML Pages ────────────────────────────────────────────────────────────────
 
-if ($uri === '/') {
+if ($p === '' && $a === '') {
     render_template(__DIR__ . '/templates/dashboard.html');
 }
 
-if ($uri === '/admin') {
+if ($p === 'admin') {
     render_template(__DIR__ . '/templates/admin.html');
 }
 
 // ── API: Tasks ────────────────────────────────────────────────────────────────
 
-if ($uri === '/api/tasks' && $method === 'GET') {
+if ($a === 'api/tasks' && $method === 'GET') {
     $tasks = get_tasks();
     $result = [];
     foreach ($tasks as $t) {
@@ -355,7 +391,7 @@ if ($uri === '/api/tasks' && $method === 'GET') {
     json_response(['success' => true, 'tasks' => $result]);
 }
 
-if ($uri === '/api/tasks' && $method === 'POST') {
+if ($a === 'api/tasks' && $method === 'POST') {
     $data = json_body();
     if (!$data || empty(trim($data['name'] ?? ''))) {
         json_response(['success' => false, 'error' => '任务名称不能为空'], 400);
@@ -467,11 +503,11 @@ if (preg_match('#^/api/tasks/(\d+)/history$#', $uri, $m) === 1 && $method === 'G
 
 // ── API: Channels ─────────────────────────────────────────────────────────────
 
-if ($uri === '/api/channels' && $method === 'GET') {
+if ($a === 'api/channels' && $method === 'GET') {
     json_response(['success' => true, 'channels' => get_channels()]);
 }
 
-if ($uri === '/api/channels' && $method === 'POST') {
+if ($a === 'api/channels' && $method === 'POST') {
     $data = json_body();
     if (!$data || empty(trim($data['name'] ?? ''))) {
         json_response(['success' => false, 'error' => '名称不能为空'], 400);
@@ -516,7 +552,7 @@ if (preg_match('#^/api/channels/(\d+)$#', $uri, $m) === 1) {
 
 // ── /api/channels/test ────────────────────────────────────────────────────────
 
-if ($uri === '/api/channels/test' && $method === 'POST') {
+if ($a === 'api/channels/test' && $method === 'POST') {
     $data = json_body();
     if (!$data) {
         json_response(['success' => false, 'error' => '无效数据'], 400);
@@ -595,7 +631,7 @@ if ($uri === '/api/channels/test' && $method === 'POST') {
 
 // ── API: Settings ─────────────────────────────────────────────────────────────
 
-if ($uri === '/api/settings') {
+if ($a === 'api/settings') {
     if ($method === 'GET') {
         json_response([
             'success' => true,
@@ -620,7 +656,7 @@ if ($uri === '/api/settings') {
     }
 }
 
-if ($uri === '/api/settings/security') {
+if ($a === 'api/settings/security') {
     if ($method === 'GET') {
         $q = get_setting('security_question') ?: '';
         json_response(['success' => true, 'question' => $q]);

@@ -104,7 +104,7 @@ td .task-desc-sm{color:var(--text-muted);font-size:0.8rem;display:block;margin-t
 <h1>后台管理</h1>
 <div style="display:flex;gap:10px;align-items:center">
 <a href="/">← 返回看板</a>
-<a href="/logout" style="color:var(--text-muted);text-decoration:none;font-size:0.9rem;padding:8px 16px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);transition:all 0.25s ease;background:rgba(18,18,24,0.5)">退出</a>
+<a href="?p=logout" style="color:var(--text-muted);text-decoration:none;font-size:0.9rem;padding:8px 16px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);transition:all 0.25s ease;background:rgba(18,18,24,0.5)">退出</a>
 </div>
 </div>
 
@@ -175,12 +175,12 @@ function saveSettings(){
   if(!pw){msg(el,'请输入新密码','error');return}
   if(pw!==pw2){msg(el,'两次密码输入不一致','error');return}
   if(pw.length<6){msg(el,'密码长度不能少于6位','error');return}
-  fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
+  fetch('?a=api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
     .then(r=>r.json())
     .then(d=>{
       if(d.success){
         msg(el,'密码已修改，即将重新登录','success');
-        setTimeout(()=>{window.location='/logout'},2000);
+        setTimeout(()=>{window.location='?p=logout'},2000);
       }else{
         msg(el,d.error||'保存失败','error');
       }
@@ -191,7 +191,7 @@ function saveSecurityQA(){
   const q=document.getElementById('sf_question').value.trim();
   const a=document.getElementById('sf_answer').value.trim();
   if(!q||!a){msg(el,'请填写问题和答案','error');return}
-  fetch('/api/settings/security',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,answer:a})})
+  fetch('?a=api/settings/security',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,answer:a})})
     .then(r=>r.json())
     .then(d=>{
       if(d.success){msg(el,'密保问题已保存','success')}
@@ -199,7 +199,7 @@ function saveSecurityQA(){
     }).catch(()=>{msg(el,'网络错误','error')});
 }
 // 加载已有密保
-fetch('/api/settings/security').then(r=>r.json()).then(d=>{
+fetch('?a=api/settings/security').then(r=>r.json()).then(d=>{
   if(d.success&&d.question)document.getElementById('sf_question').value=d.question;
 }).catch(function(){});
 </script>
@@ -278,7 +278,7 @@ function closeModal(id){document.getElementById(id).classList.remove('active')}
 
 // ── Tasks ──
 async function loadTasks(){
-  const res=await fetch('/api/tasks');
+  const res=await fetch('?a=api/tasks');
   const data=await res.json();
   const tbody=document.getElementById('taskTableBody');
   if(!data.tasks||data.tasks.length===0){
@@ -311,7 +311,7 @@ function showTaskModal(data){
   document.getElementById('taskModal').classList.add('active');
 }
 async function editTask(id){
-  const res=await fetch('/api/tasks');
+  const res=await fetch('?a=api/tasks');
   const data=await res.json();
   const t=(data.tasks||[]).find(x=>x.id===id);
   if(t)showTaskModal(t);
@@ -331,7 +331,7 @@ async function saveTask(){
     active:document.getElementById('tf_active')?document.getElementById('tf_active').checked:true,
   };
   try{
-    const url=editingTaskId?'/api/tasks/'+editingTaskId:'/api/tasks';
+    const url=editingTaskId?'/api/tasks/'+editingTaskId:'?a=api/tasks';
     const method=editingTaskId?'PUT':'POST';
     const res=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json();
@@ -341,7 +341,7 @@ async function saveTask(){
 }
 async function deleteTask(id){
   if(!confirm('确认删除任务 #'+id+'？相关签到记录也会一并删除。'))return;
-  const res=await fetch('/api/tasks/'+id,{method:'DELETE'});
+  const res=await fetch('?a=api/tasks/' + id,{method:'DELETE'});
   const data=await res.json();
   if(data.success)loadTasks();
   else alert('删除失败: '+(data.error||''));
@@ -349,7 +349,7 @@ async function deleteTask(id){
 
 // ── Channels ──
 async function loadChannels(){
-  const res=await fetch('/api/channels');
+  const res=await fetch('?a=api/channels');
   const data=await res.json();
   const tbody=document.getElementById('channelTableBody');
   if(!data.channels||data.channels.length===0){
@@ -388,7 +388,7 @@ function showChannelModal(data){
   document.getElementById('channelModal').classList.add('active');
 }
 async function editChannel(id){
-  const res=await fetch('/api/channels');
+  const res=await fetch('?a=api/channels');
   const data=await res.json();
   const c=(data.channels||[]).find(x=>x.id===id);
   if(c)showChannelModal(c);
@@ -411,7 +411,7 @@ async function saveChannel(){
     enabled:document.getElementById('cf_active')?document.getElementById('cf_active').checked:true,
   };
   try{
-    const url=editingChannelId?'/api/channels/'+editingChannelId:'/api/channels';
+    const url=editingChannelId?'/api/channels/'+editingChannelId:'?a=api/channels';
     const method=editingChannelId?'PUT':'POST';
     const res=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json();
@@ -421,7 +421,7 @@ async function saveChannel(){
 }
 async function deleteChannel(id){
   if(!confirm('确认删除通道 #'+id+'？'))return;
-  const res=await fetch('/api/channels/'+id,{method:'DELETE'});
+  const res=await fetch('?a=api/channels/' + id,{method:'DELETE'});
   const data=await res.json();
   if(data.success){loadChannels();showGMsg('通道已删除')}
   else alert('删除失败: '+(data.error||''));
@@ -434,7 +434,7 @@ async function testChannel(){
     config:getChannelConfig(),
   };
   try{
-    const res=await fetch('/api/channels/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const res=await fetch('?a=api/channels/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json();
     if(data.success)msg(el,'测试消息发送成功！','success');
     else msg(el,data.error||'失败','error');

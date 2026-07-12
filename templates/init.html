@@ -77,7 +77,7 @@ document.getElementById('initForm').addEventListener('submit', function(e) {
   btn.disabled = true;
   btn.textContent = '设置中...';
 
-  fetch('/api/init', {
+  fetch('?a=api/init', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({password: pw})
@@ -85,7 +85,7 @@ document.getElementById('initForm').addEventListener('submit', function(e) {
   .then(function(d) {
     if (d.success) {
       showMsg('设置成功，正在跳转...', 'success');
-      setTimeout(function() { window.location.href = '/login'; }, 1200);
+      setTimeout(function() { window.location.href = '?p=login'; }, 1200);
     } else {
       showMsg(d.error || '设置失败', 'error');
       btn.disabled = false;
