@@ -426,7 +426,7 @@ if ($a === 'api/tasks' && $method === 'POST') {
 // ── /api/tasks/<id> (PUT / DELETE) ─────────────────────────────────────────────
 
 // Match /api/tasks/<id>
-if (preg_match('#^/api/tasks/(\d+)$#', $uri, $m) === 1) {
+if (preg_match('#^api/tasks/(\\d+)$#', $a, $m) === 1) {
     $task_id = (int)$m[1];
 
     if ($method === 'PUT') {
@@ -474,7 +474,7 @@ if (preg_match('#^/api/tasks/(\d+)$#', $uri, $m) === 1) {
 
 // ── /api/tasks/<id>/checkin ──────────────────────────────────────────────────
 
-if (preg_match('#^/api/tasks/(\d+)/checkin$#', $uri, $m) === 1 && $method === 'POST') {
+if (preg_match('#^api/tasks/(\\d+)/checkin$#', $a, $m) === 1 && $method === 'POST') {
     $task_id = (int)$m[1];
     $task = get_task($task_id);
     if (!$task) {
@@ -495,7 +495,7 @@ if (preg_match('#^/api/tasks/(\d+)/checkin$#', $uri, $m) === 1 && $method === 'P
 
 // ── /api/tasks/<id>/history ──────────────────────────────────────────────────
 
-if (preg_match('#^/api/tasks/(\d+)/history$#', $uri, $m) === 1 && $method === 'GET') {
+if (preg_match('#^api/tasks/(\\d+)/history$#', $a, $m) === 1 && $method === 'GET') {
     $task_id = (int)$m[1];
     $history = get_all_checkins($task_id);
     json_response(['success' => true, 'history' => $history]);
@@ -520,7 +520,7 @@ if ($a === 'api/channels' && $method === 'POST') {
 
 // ── /api/channels/<id> (PUT / DELETE) ─────────────────────────────────────────
 
-if (preg_match('#^/api/channels/(\d+)$#', $uri, $m) === 1) {
+if (preg_match('#^api/channels/(\\d+)$#', $a, $m) === 1) {
     $channel_id = (int)$m[1];
 
     if ($method === 'PUT') {
