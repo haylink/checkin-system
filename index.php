@@ -109,19 +109,44 @@ function json_body(): ?array
 
 /**
  * Send notification via all enabled channels after a checkin.
+ *
+ * @param array $task     Task metadata (name, checkin_days, id).
+ * @param string|null $lastCheckinTime  ISO checkin timestamp. When null,
+ *   the function queries the DB for the latest checkin.
  */
-function send_checkin_notification(array $task): void
+function send_checkin_notification(array $task, ?string $lastCheckinTime = null): void
 {
     $channels = array_filter(get_channels(), fn($c) => $c['enabled']);
     if (empty($channels)) {
         return;
     }
 
+    $task_id = (int)$task['id'];
+    $interval = (int)$task['checkin_days'];
+
+    // Determine the most recent checkin time
+    if ($lastCheckinTime === null) {
+        $last = get_last_checkin($task_id);
+        $lastCheckinTime = $last ? $last['checkin_time'] : null;
+    }
+
+    // Build next-checkin message
+    $nextLine = "下次签到：{$interval} 天后";
+    if ($lastCheckinTime) {
+        try {
+            $dt = new DateTime($lastCheckinTime);
+            $dt->modify("{$interval} days");
+            $nextLine .= "，" . $dt->format('Y-m-d H:i');
+        } catch (\Exception $e) {
+            // fall back to relative-only
+        }
+    }
+
     $text = "✅ 签到成功！\n\n"
           . "任务：{$task['name']}\n"
           . "周期：{$task['checkin_days']} 天\n"
           . "时间：" . date('Y-m-d H:i') . "\n\n"
-          . "下次签到：{$task['checkin_days']} 天后";
+          . $nextLine;
 
     foreach ($channels as $ch) {
         $ctype = $ch['channel_type'];
@@ -488,7 +513,8 @@ if (preg_match('#^api/tasks/(\\d+)/checkin$#', $a, $m) === 1 && $method === 'POS
     }
 
     // Send notifications to all enabled channels
-    send_checkin_notification($task);
+    $last = get_last_checkin($task_id);
+    send_checkin_notification($task, $last ? $last['checkin_time'] : null);
 
     json_response(['success' => true, 'checkin_id' => $cid]);
 }
