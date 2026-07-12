@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>签到系统</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg-primary:#07070a;--bg-card:rgba(18,18,24,0.75);--border-subtle:rgba(255,255,255,0.06);--accent:#6366f1;--accent-glow:rgba(99,102,241,0.25);--accent-gradient:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);--text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#64748b;--radius-sm:10px;--radius-lg:20px}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg-primary);min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--text-primary)}
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse 600px 600px at 20% 30%,rgba(99,102,241,0.04) 0%,transparent 70%),radial-gradient(ellipse 500px 500px at 80% 70%,rgba(139,92,246,0.03) 0%,transparent 70%);pointer-events:none;z-index:-1;animation:bgShift 20s ease-in-out infinite alternate}
+@keyframes bgShift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(-2%,1%) scale(1.02)}100%{transform:translate(2%,-1%) scale(1.01)}}
+.background-pattern{position:fixed;top:0;left:0;width:100%;height:100%;opacity:0.015;background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(255,255,255,0.08) 2px,rgba(255,255,255,0.08) 4px);z-index:-1}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+.auth-card{width:400px;max-width:92vw;background:var(--bg-card);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-radius:var(--radius-lg);border:1px solid var(--border-subtle);padding:40px 36px;box-shadow:0 16px 48px rgba(0,0,0,0.3);position:relative;overflow:hidden}
+.auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent)}
+.auth-card h1{text-align:center;font-size:1.8rem;font-weight:200;margin-bottom:8px;background:linear-gradient(135deg,#f8fafc 0%,#94a3b8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.02em}
+.auth-card .subtitle{text-align:center;color:var(--text-muted);font-size:0.9rem;font-weight:300;margin-bottom:32px}
+.form-group{margin-bottom:20px}
+.form-group label{display:block;color:var(--text-secondary);margin-bottom:8px;font-size:0.9rem;letter-spacing:0.3px}
+.form-group input{width:100%;padding:14px 18px;border:none;border-radius:var(--radius-sm);background:rgba(30,30,38,0.8);color:var(--text-primary);font-size:15px;border:1px solid rgba(255,255,255,0.07);transition:all 0.25s ease}
+.form-group input::placeholder{color:var(--text-muted)}
+.form-group input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);background:rgba(36,36,46,0.9)}
+.btn{width:100%;background:var(--accent-gradient);color:white;border:none;padding:13px 26px;border-radius:var(--radius-sm);cursor:pointer;font-size:15px;font-weight:500;transition:all 0.25s ease;box-shadow:0 4px 16px var(--accent-glow);position:relative;overflow:hidden;user-select:none}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 24px var(--accent-glow)}
+.btn:active{transform:translateY(0)}
+.msg{padding:12px 16px;border-radius:var(--radius-sm);margin-bottom:20px;font-size:0.9rem;display:none;align-items:center;gap:10px;animation:msgIn 0.3s ease;border:1px solid}
+@keyframes msgIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.msg.error{display:flex;background:rgba(239,68,68,0.08);color:#ef4444;border-color:rgba(239,68,68,0.15)}
+.msg.error::before{content:'✕';width:18px;height:18px;background:#ef4444;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.forgot-link{text-align:center;margin-top:16px}
+.forgot-link a{color:var(--text-muted);font-size:0.82rem;text-decoration:none;cursor:pointer;transition:color 0.2s}
+.forgot-link a:hover{color:var(--text-secondary)}
+.reset-tip{display:none;margin-top:16px;padding:14px 16px;border-radius:var(--radius-sm);background:rgba(30,30,38,0.6);border:1px solid rgba(255,255,255,0.06);font-size:0.82rem;color:var(--text-muted);line-height:1.6;animation:msgIn 0.3s ease}
+.reset-tip code{display:block;background:rgba(0,0,0,0.3);padding:8px 12px;border-radius:6px;margin-top:6px;font-size:0.8rem;color:#06b6d4;word-break:break-all;font-family:'SF Mono','Fira Code',monospace}
+.footer{text-align:center;margin-top:24px;font-size:0.78rem;color:rgba(255,255,255,0.15)}
+</style>
+</head>
+<body>
+<div class="background-pattern"></div>
+<div class="auth-card">
+<h1>签到系统</h1>
+<p class="subtitle">管理您的签到任务</p>
+<div id="msg" class="msg">__MSG__</div>
+
+<!-- 登录表单 -->
+<form id="loginForm" method="POST" style="display:block">
+<div class="form-group"><label>管理密码</label><input type="password" name="password" placeholder="请输入管理密码" autofocus></div>
+<button class="btn" type="submit">登 录</button>
+</form>
+
+<!-- 忘记密码步骤 -->
+<div id="forgotStep" style="display:none">
+<div id="forgotMsg" class="msg" style="margin-bottom:16px"></div>
+<div id="stepQ" style="display:block">
+<div class="form-group"><label id="securityQuestionLabel">密保问题</label><input id="sq_answer" placeholder="请输入答案" style="font-family:SF Mono,Fira Code,monospace"></div>
+<button class="btn" onclick="checkAnswer()" style="margin-bottom:12px">验证答案</button>
+<button class="btn" style="background:transparent;border:1px solid rgba(255,255,255,0.12);box-shadow:none;color:var(--text-secondary);font-size:13px;padding:8px" onclick="backToLogin()">返回登录</button>
+</div>
+<div id="stepP" style="display:none">
+<div class="form-group"><label>新密码（至少6位）</label><input type="password" id="np1" placeholder="输入新密码" style="font-family:SF Mono,Fira Code,monospace"></div>
+<div class="form-group"><label>确认新密码</label><input type="password" id="np2" placeholder="再次输入" style="font-family:SF Mono,Fira Code,monospace"></div>
+<button class="btn" onclick="resetPassword()" style="margin-bottom:12px">重置密码</button>
+<button class="btn" style="background:transparent;border:1px solid rgba(255,255,255,0.12);box-shadow:none;color:var(--text-secondary);font-size:13px;padding:8px" onclick="backToLogin()">返回登录</button>
+</div>
+</div>
+
+<div class="forgot-link"><a onclick="showForgot()">忘记密码？</a></div>
+<p class="footer">TaskFlow</p>
+</div>
+
+<script>
+var _resetToken=null;
+function showMsg(el,text,type){el.className='msg '+type;el.innerHTML='<span>'+text+'</span>'}
+function backToLogin(){document.getElementById('loginForm').style.display='block';document.getElementById('forgotStep').style.display='none'}
+function showForgot(){
+  _resetToken=null;
+  var f=document.getElementById('forgotStep');
+  document.getElementById('loginForm').style.display='none';
+  f.style.display='block';
+  document.getElementById('stepQ').style.display='block';
+  document.getElementById('stepP').style.display='none';
+  document.getElementById('forgotMsg').className='msg';
+  var msg=document.getElementById('forgotMsg');
+  msg.innerHTML='<span>正在加载...</span>';msg.className='msg';
+  fetch('/api/reset-password/question').then(r=>r.json()).then(d=>{
+    if(d.success&&d.has_question){
+      document.getElementById('securityQuestionLabel').textContent='🔐 '+d.question;
+      document.getElementById('forgotMsg').className='msg';
+    }else{
+      document.getElementById('stepQ').style.display='none';
+      document.getElementById('stepP').style.display='none';
+      showMsg(document.getElementById('forgotMsg'),'未设置密保问题，请联系管理员在后台配置。如需紧急重置，登录服务器执行：<code style="display:block;background:rgba(0,0,0,0.3);padding:6px 10px;border-radius:4px;margin-top:6px;font-size:0.78rem;color:#06b6d4">php reset_password.php 新密码</code>','error');
+    }
+  }).catch(function(){showMsg(document.getElementById('forgotMsg'),'网络错误','error')});
+}
+function checkAnswer(){
+  var ans=document.getElementById('sq_answer').value.trim();
+  if(!ans){showMsg(document.getElementById('forgotMsg'),'请输入答案','error');return}
+  fetch('/api/reset-password/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({answer:ans})})
+    .then(r=>r.json()).then(d=>{
+      if(d.success){
+        _resetToken=d.token;
+        document.getElementById('stepQ').style.display='none';
+        document.getElementById('stepP').style.display='block';
+        document.getElementById('forgotMsg').className='msg';
+      }else{
+        showMsg(document.getElementById('forgotMsg'),d.error||'答案错误','error');
+      }
+    }).catch(function(){showMsg(document.getElementById('forgotMsg'),'网络错误','error')});
+}
+function resetPassword(){
+  var p1=document.getElementById('np1').value,p2=document.getElementById('np2').value;
+  if(!p1||p1.length<6){showMsg(document.getElementById('forgotMsg'),'密码长度不能少于6位','error');return}
+  if(p1!==p2){showMsg(document.getElementById('forgotMsg'),'两次密码不一致','error');return}
+  if(!_resetToken){showMsg(document.getElementById('forgotMsg'),'请先验证密保问题','error');return}
+  fetch('/api/reset-password/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:p1,token:_resetToken})})
+    .then(r=>r.json()).then(d=>{
+      if(d.success){
+        showMsg(document.getElementById('forgotMsg'),'密码已重置，请使用新密码登录','success');
+        setTimeout(function(){
+          document.getElementById('np1').value='';document.getElementById('np2').value='';
+          document.getElementById('sq_answer').value='';
+          backToLogin();
+        },2000);
+      }else{
+        showMsg(document.getElementById('forgotMsg'),d.error||'重置失败','error');
+      }
+    }).catch(function(){showMsg(document.getElementById('forgotMsg'),'网络错误','error')});
+}
+</script>
+</body>
+</html>
