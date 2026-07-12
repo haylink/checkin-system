@@ -1,10 +1,10 @@
 # TaskFlow — Check-in Reminder System
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/framework-Flask-green.svg)](https://flask.palletsprojects.com/)
+[![PHP 8.0+](https://img.shields.io/badge/php-8.0+-blue.svg)](https://www.php.net/)
+[![SQLite](https://img.shields.io/badge/database-SQLite-green.svg)](https://www.sqlite.org/)
 [![License: MIT](https://img.shields.io/github/license/haylink/checkin-system)](./LICENSE)
 
-A lightweight check-in reminder system built with Flask + SQLite, featuring multi-channel notifications via Telegram, ServerChan (WeChat), and DingTalk webhook.
+A lightweight check-in reminder system built with PHP + SQLite, featuring multi-channel notifications via Telegram, ServerChan (WeChat), and DingTalk webhook.
 
 ## Features
 
@@ -20,8 +20,8 @@ A lightweight check-in reminder system built with Flask + SQLite, featuring mult
 
 ### Prerequisites
 
-- Python 3.8+
-- pip
+- PHP 8.0+ (with SQLite and JSON extensions — typically built-in)
+- A web server (Apache/Nginx with PHP-FPM, or use the built-in server for development)
 
 ### Installation
 
@@ -29,16 +29,13 @@ A lightweight check-in reminder system built with Flask + SQLite, featuring mult
 # 1. Clone the project
 git clone https://github.com/haylink/checkin-system.git && cd checkin-system
 
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Set environment variables
+# 2. Set environment variables
 export ADMIN_PASSWORD='***'
 export TELEGRAM_BOT_TOKEN='***'       # Optional
 export TELEGRAM_CHAT_ID='your_chat_id'           # Optional
 
-# 4. Start the server
-python3 app.py
+# 3. Start the server (development)
+php -S 0.0.0.0:8080 -t .
 ```
 
 Visit http://localhost:8080 to access the login page.
@@ -70,7 +67,7 @@ Run via cron (check every minute):
 
 ```bash
 crontab -e
-* * * * * cd /path/to/checkin-system && python3 remind.py >> logs/remind.log 2>&1
+* * * * * cd /path/to/checkin-system && php remind.php >> logs/remind.log 2>&1
 ```
 
 Reminder logic:
@@ -92,22 +89,22 @@ Reminder logic:
 - **Command line**:
 
 ```bash
-python3 reset_password.py new_password
+php reset_password.php new_password
 ```
 
 ### Running in Background
 
 ```bash
-nohup python3 app.py > logs/app.log 2>&1 &
+nohup php -S 0.0.0.0:8080 -t /path/to/checkin-system > logs/app.log 2>&1 &
 ```
 
 ---
 
 ## Deployment on a Server
 
-### Basic Setup (Direct Access via Public IP)
+### Production Setup (Apache/Nginx + PHP-FPM)
 
-If your server has a public IP, you can access the app directly on port 8080 — no reverse proxy needed.
+For production, use Apache or Nginx with PHP-FPM instead of the built-in server. The entry point is `index.php` — configure your web server to route all requests to it.
 
 **1. Choose a directory and clone the project**
 
@@ -117,7 +114,6 @@ Recommended: `/opt/checkin-system`
 mkdir -p /opt/checkin-system
 cd /opt/checkin-system
 git clone https://github.com/haylink/checkin-system.git .
-pip install -r requirements.txt
 ```
 
 > The database (`data.db`) is automatically created in this directory on first startup.
@@ -140,18 +136,30 @@ Then reload the profile:
 source ~/.bashrc
 ```
 
-**3. Start the application**
+**3. Nginx configuration**
 
-```bash
-cd /opt/checkin-system
-python3 app.py
+```nginx
+server {
+    listen 80;
+    server_name checkin.example.com;
+    root /opt/checkin-system;
+
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.x-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
 ```
 
-Access via: `http://<your-server-ip>:8080`
-
 **4. Optional: Run as a systemd service**
-
-To ensure the app starts on boot and restarts on failure:
 
 ```bash
 sudo nano /etc/systemd/system/checkin-system.service
@@ -168,7 +176,7 @@ WorkingDirectory=/opt/checkin-system
 Environment=ADMIN_PASSWORD=***
 Environment=TELEGRAM_BOT_TOKEN=***
 Environment=TELEGRAM_CHAT_ID=your_chat_id
-ExecStart=/usr/bin/python3 /opt/checkin-system/app.py
+ExecStart=/usr/bin/php -S 0.0.0.0:8080 -t /opt/checkin-system
 Restart=always
 RestartSec=10
 
@@ -187,53 +195,18 @@ sudo systemctl start checkin-system
 sudo systemctl status checkin-system
 ```
 
-**5. Optional: Configure Nginx reverse proxy (for domain access)**
-
-If you want to use a domain name or access on port 80 without specifying 8080:
-
-```bash
-sudo apt install nginx   # or: sudo yum install nginx
-```
-
-Create a site configuration:
-
-```nginx
-# /etc/nginx/sites-available/checkin
-server {
-    listen 80;
-    server_name checkin.example.com;  # Replace with your domain
-
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Enable and reload:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/checkin /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-Access via: `http://checkin.example.com`
-
-**6. Configure crontab for reminders**
+**5. Configure crontab for reminders**
 
 ```bash
 crontab -e
-* * * * * cd /opt/checkin-system && /usr/bin/python3 remind.py >> logs/remind.log 2>&1
+* * * * * cd /opt/checkin-system && php remind.php >> logs/remind.log 2>&1
 ```
 
 ---
 
 ## 中文说明
 
-TaskFlow 是一个轻量级签到提醒系统，基于 Flask + SQLite 构建，支持 Telegram、Server酱（微信）、钉钉机器人三种推送方式。
+TaskFlow 是一个轻量级签到提醒系统，基于 PHP + SQLite 构建，支持 Telegram、Server酱（微信）、钉钉机器人三种推送方式。
 
 ### 功能特性
 
@@ -249,16 +222,13 @@ TaskFlow 是一个轻量级签到提醒系统，基于 Flask + SQLite 构建，�
 # 1. 克隆项目
 git clone https://github.com/haylink/checkin-system.git && cd checkin-system
 
-# 2. 安装依赖
-pip install -r requirements.txt
-
-# 3. 设置环境变量
+# 2. 设置环境变量
 export ADMIN_PASSWORD='your_secure_password'
 export TELEGRAM_BOT_TOKEN='***'       # 可选
 export TELEGRAM_CHAT_ID='your_chat_id'           # 可选
 
-# 4. 启动服务
-python3 app.py
+# 3. 启动服务（开发模式）
+php -S 0.0.0.0:8080 -t .
 ```
 
 访问 http://localhost:8080 进入登录页面。
@@ -290,7 +260,7 @@ python3 app.py
 
 ```bash
 crontab -e
-* * * * * cd /path/to/checkin-system && python3 remind.py >> logs/remind.log 2>&1
+* * * * * cd /path/to/checkin-system && php remind.php >> logs/remind.log 2>&1
 ```
 
 提醒逻辑：
@@ -312,141 +282,13 @@ crontab -e
 - **命令行**：
 
 ```bash
-python3 reset_password.py 新密码
+php reset_password.php 新密码
 ```
 
 ### 后台运行
 
 ```bash
-nohup python3 app.py > logs/app.log 2>&1 &
-```
-
----
-
-## 服务器部署
-
-### 基础部署（公网 IP 直接访问）
-
-如果你的服务器有公网 IP，应用启动后直接通过 `http://<服务器IP>:8080` 访问即可，无需反向代理。
-
-**1. 选择目录并克隆项目**
-
-推荐路径：`/opt/checkin-system`
-
-```bash
-mkdir -p /opt/checkin-system
-cd /opt/checkin-system
-git clone https://github.com/haylink/checkin-system.git .
-pip install -r requirements.txt
-```
-
-> 数据库（`data.db`）会在首次启动时自动在项目目录下创建。
-
-**2. 设置环境变量**
-
-将环境变量写入 shell 配置文件（`~/.bashrc` 或 `~/.zshrc`）以持久化：
-
-```bash
-# ~/.bashrc
-export ADMIN_PASSWORD='your_secure_password'
-export TELEGRAM_BOT_TOKEN='***'       # 可选
-export TELEGRAM_CHAT_ID='your_chat_id'           # 可选
-export DATABASE_PATH='/opt/checkin-system/data.db'
-```
-
-重新加载配置：
-
-```bash
-source ~/.bashrc
-```
-
-**3. 启动应用**
-
-```bash
-cd /opt/checkin-system
-python3 app.py
-```
-
-访问：`http://<服务器IP>:8080`
-
-**4. 可选：配置 systemd 服务**
-
-让应用开机自启、崩溃自动重启：
-
-```bash
-sudo nano /etc/systemd/system/checkin-system.service
-```
-
-```ini
-[Unit]
-Description=TaskFlow 签到提醒系统
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/checkin-system
-Environment=ADMIN_PASSWORD=your_secure_password
-Environment=TELEGRAM_BOT_TOKEN=your_bot_token
-Environment=TELEGRAM_CHAT_ID=your_chat_id
-ExecStart=/usr/bin/python3 /opt/checkin-system/app.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-> 将占位值替换为实际凭据。也可使用 `EnvironmentFile` 指向单独的 `.env` 文件。
-
-启用并启动：
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable checkin-system
-sudo systemctl start checkin-system
-sudo systemctl status checkin-system
-```
-
-**5. 可选：配置 Nginx 反向代理（域名访问）**
-
-如果使用域名访问，或希望通过 80 端口访问：
-
-```bash
-sudo apt install nginx   # 或：sudo yum install nginx
-```
-
-创建站点配置：
-
-```nginx
-# /etc/nginx/sites-available/checkin
-server {
-    listen 80;
-    server_name checkin.example.com;  # 替换为你的域名
-
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-启用并重启：
-
-```bash
-sudo ln -s /etc/nginx/sites-available/checkin /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-访问：`http://checkin.example.com`
-
-**6. 配置定时提醒**
-
-```bash
-crontab -e
-* * * * * cd /opt/checkin-system && /usr/bin/python3 remind.py >> logs/remind.log 2>&1
+nohup php -S 0.0.0.0:8080 -t /path/to/checkin-system > logs/app.log 2>&1 &
 ```
 
 ---
@@ -455,13 +297,16 @@ crontab -e
 
 ```
 checkin-system/
-├── app.py              # Flask Web application (frontend + REST API)
-├── database.py         # SQLite database layer
-├── remind.py           # Scheduled reminder script (cron triggered)
-├── config.py           # Environment variable configuration
-├── reset_password.py   # CLI password reset tool
-├── requirements.txt    # Python dependencies
-├── .gitignore
+├── index.php              # PHP Web application entry point (routing + REST API)
+├── database.php           # SQLite database layer
+├── remind.php             # Scheduled reminder script (cron triggered)
+├── config.php             # Environment variable configuration
+├── reset_password.php     # CLI password reset tool
+├── templates/
+│   ├── login.html         # Login page template
+│   ├── dashboard.html     # Dashboard page template
+│   └── admin.html         # Admin panel page template
+├── data.db                # SQLite database
 ├── LICENSE
 └── README.md
 ```
