@@ -56,6 +56,7 @@ function render_template(string $filepath, string $msg = ''): void
 
 /**
  * Auth guard: redirect to login if not authenticated.
+ * If no admin password exists yet, redirect to init page instead.
  * For API routes, returns 401 JSON instead.
  */
 function require_auth(bool $is_api = false): void
@@ -63,6 +64,10 @@ function require_auth(bool $is_api = false): void
     if (empty($_SESSION['logged_in'])) {
         if ($is_api) {
             json_response(['success' => false, 'error' => '未登录'], 401);
+        }
+        // If no admin password has been set, redirect to init page
+        if (!get_admin_password()) {
+            redirect('/init');
         }
         redirect('/login');
     }
@@ -174,6 +179,10 @@ $uri = $uri !== '/' ? rtrim($uri, '/') : $uri;
 
 // LOGIN
 if ($uri === '/login') {
+    // If no admin password exists yet, redirect to init page
+    if (!get_admin_password()) {
+        redirect('/init');
+    }
     if ($method === 'POST') {
         $pw = $_POST['password'] ?? '';
         if ($pw === get_admin_password()) {
@@ -254,6 +263,34 @@ if ($uri === '/api/reset-password/reset' && $method === 'POST') {
     set_setting('admin_password', $newPassword);
     unset($_SESSION['_reset_tokens'][$token]);
     json_response(['success' => true, 'message' => '密码已重置']);
+}
+
+// ── Init: First-time admin password setup ──────────────────────────────────────
+// These routes are public — no auth required because no admin password exists yet.
+
+if ($uri === '/api/init' && $method === 'POST') {
+    $data = json_body();
+    if (!$data) {
+        json_response(['success' => false, 'error' => '无效数据'], 400);
+    }
+    $password = trim($data['password'] ?? '');
+    if (!$password || strlen($password) < 6) {
+        json_response(['success' => false, 'error' => '密码长度不能少于6位'], 400);
+    }
+    // If a password already exists, reject
+    if (get_admin_password()) {
+        json_response(['success' => false, 'error' => '管理员密码已存在'], 400);
+    }
+    set_setting('admin_password', $password);
+    json_response(['success' => true]);
+}
+
+if ($uri === '/init') {
+    // If a password already exists, redirect to login instead
+    if (get_admin_password()) {
+        redirect('/login');
+    }
+    render_template(__DIR__ . '/templates/init.html');
 }
 
 // ── All remaining routes require auth ─────────────────────────────────────────

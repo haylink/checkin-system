@@ -35,15 +35,10 @@ function load_dotenv(): void
 load_dotenv();
 
 // ── Configuration ──────────────────────────────────────────────────────────────
-// 优先用环境变量（.env 已加载），否则用默认占位值
+// ADMIN_PASSWORD is optional. It is NOT required at startup.
+// On first visit, if no admin password exists in the DB, users are redirected
+// to the init page to set one via the web UI.
 $ADMIN_PASSWORD = getenv('ADMIN_PASSWORD') ?: '';
-if (!$ADMIN_PASSWORD) {
-    throw new RuntimeException(
-        "❌ ADMIN_PASSWORD is not set.\n" .
-        "   1. Create a .env file in public_html/ with: ADMIN_PASSWORD='your_strong_password'\n" .
-        "   2. Or set it via your hosting panel (e.g. FastCGI env / .htaccess SetEnv)"
-    );
-}
 
 $TELEGRAM_BOT_TOKEN = getenv('TELEGRAM_BOT_TOKEN') ?: '';
 $TELEGRAM_CHAT_ID = getenv('TELEGRAM_CHAT_ID') ?: '0';
