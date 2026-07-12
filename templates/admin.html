@@ -331,7 +331,7 @@ async function saveTask(){
     active:document.getElementById('tf_active')?document.getElementById('tf_active').checked:true,
   };
   try{
-    const url=editingTaskId?'/api/tasks/'+editingTaskId:'?a=api/tasks';
+    const url=editingTaskId?'?a=api/tasks/'+editingTaskId:'?a=api/tasks';
     const method=editingTaskId?'PUT':'POST';
     const res=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json();
@@ -411,7 +411,7 @@ async function saveChannel(){
     enabled:document.getElementById('cf_active')?document.getElementById('cf_active').checked:true,
   };
   try{
-    const url=editingChannelId?'/api/channels/'+editingChannelId:'?a=api/channels';
+    const url=editingChannelId?'?a=api/channels/'+editingChannelId:'?a=api/channels';
     const method=editingChannelId?'PUT':'POST';
     const res=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json();
