@@ -131,14 +131,15 @@ function send_checkin_notification(array $task, ?string $lastCheckinTime = null)
     }
 
     // Build next-checkin message
-    $nextLine = "下次签到：{$interval} 天后";
+    $nextLine = "下次签到：";
     if ($lastCheckinTime) {
         try {
             $dt = new DateTime($lastCheckinTime);
             $dt->modify("{$interval} days");
-            $nextLine = "下次签到：" . $dt->format('Y-m-d H:i') . "\n" . $interval . " 天后";
+            $nextLine .= $dt->format('Y-m-d H:i');
         } catch (\Exception $e) {
             // fall back to relative-only
+            $nextLine .= "{$interval} 天后";
         }
     }
 
