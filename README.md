@@ -471,3 +471,6 @@ checkin-system/
 ## License
 
 This project is licensed under the [MIT License](./LICENSE).
+<img width="996" height="643" alt="login" src="https://github.com/user-attachments/assets/3513e7cd-1f83-4141-a508-7725cc7c5567" />
+<img width="1027" height="1300" alt="admin" src="https://github.com/user-attachments/assets/7fb27720-257d-4ea3-b4a0-3b63f8095938" />
+
