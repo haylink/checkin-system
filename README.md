@@ -280,7 +280,20 @@ crontab -e
 
 - **网页端**：登录页点击「忘记了密码」→ 回答密保问题 → 重置
 - **命令行**：
+## 定时提醒
 
+系统依赖 cron 定时任务来发送签到提醒。在服务器上添加以下任务：
+
+```bash
+crontab -e
+
+添加一行：
+
+* * * * * cd /path/to/checkin-system && php remind.php >> logs/remind.log 2>&1
+
+- 每分钟执行一次，检查哪些任务需要提醒
+- 提前提醒（到期前 3 天、1 天）、当天到期提醒、超期提醒各只会发送一次，不会重复
+- 日志记录在 logs/remind.log
 ```bash
 php reset_password.php 新密码
 ```
